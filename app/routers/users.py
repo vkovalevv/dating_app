@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models import User as UserModel
-from app.auth import verify_password, create_refresh_token, create_access_token
+from app.auth import verify_password, create_refresh_token, create_access_token, hash_password
 from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix='/users',
@@ -22,7 +22,14 @@ async def create_user(user: UserCreate,
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail='Email already registered')
 
-    db_user = UserModel(**user.model_dump())
+    db_user = UserModel(email=user.email,
+                        password=hash_password(user.password),
+                        first_name=user.first_name,
+                        last_name=user.last_name,
+                        age=user.age,
+                        description=user.description,
+                        role=user.role
+                        )
     db.add(db_user)
     await db.commit()
     return db_user

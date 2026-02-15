@@ -10,4 +10,4 @@ class Image(Base):
     image: Mapped[str] = mapped_column(String(200), nullable=False)
 
     user: Mapped['User'] = relationship(
-        'User', back_populates='images', cascade='all, delete-orphan')
+        'User', back_populates='images')

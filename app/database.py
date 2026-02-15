@@ -8,7 +8,7 @@ DATABASE_URL = 'postgresql+asyncpg://datingservice_user:sergio11012005@localhost
 
 async_engine = create_async_engine(DATABASE_URL, echo=True)
 
-asycn_session_maker = async_sessionmaker(
+async_session_maker = async_sessionmaker(
     async_engine, expire_on_commit=False, class_=AsyncSession)
 
 

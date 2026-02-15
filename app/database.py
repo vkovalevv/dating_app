@@ -3,8 +3,7 @@ from sqlalchemy.ext.asyncio import (create_async_engine, async_sessionmaker,
 from sqlalchemy.orm import DeclarativeBase
 
 
-DATABASE_URL = ('DATABASE_URL=postgresql+asyncpg://datingservice_user:'
-                'sergio11012005@localhost:5432/datingservice_db')
+DATABASE_URL = 'postgresql+asyncpg://datingservice_user:sergio11012005@localhost:5432/datingservice_db'
 
 
 async_engine = create_async_engine(DATABASE_URL, echo=True)

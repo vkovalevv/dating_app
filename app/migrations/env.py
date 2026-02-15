@@ -10,7 +10,6 @@ from alembic import context
 from app.database import Base
 from app import models
 
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -31,11 +30,6 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-def include_name(name, type_, parent_names):
-   if type_ == 'schema':
-     return False
-   else:
-     return True
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -62,11 +56,7 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        include_name=include_name, # added
-    )
+    context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
         context.run_migrations()

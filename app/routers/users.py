@@ -4,8 +4,9 @@ from app.schemas.users import UserCreate, User as UserSchema
 from app.db import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from app.models import User as UserModel
+from app.models import User as UserModel, Image as ImageModel
 from app.auth import verify_password, create_refresh_token, create_access_token, hash_password
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -16,8 +17,10 @@ router = APIRouter(prefix='/users',
 @router.post('/', response_model=UserSchema, status_code=201)
 async def create_user(user: UserCreate,
                       db: AsyncSession = Depends(get_async_db)):
-    result = await db.scalars(select(UserModel).where(UserModel.email == user.email,
-                                                      UserModel.is_active == True))
+    result = await db.scalars(select(UserModel)
+                              .where(UserModel.email == user.email,
+                                     UserModel.is_active == True)
+                              .options(selectinload(UserModel.images)))
     if result.first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail='Email already registered')
@@ -31,7 +34,20 @@ async def create_user(user: UserCreate,
                         role=user.role
                         )
     db.add(db_user)
+    await db.flush()
+
+    for i, image in enumerate(user.images):
+        img = ImageModel(user_id=db_user.id,
+                         image=image,
+                         order=i,
+                         is_main=(i == 0))
+        db.add(img)
     await db.commit()
+    db_user = (await db.scalars(select(UserModel)
+                                .where(UserModel.email == user.email,
+                                       UserModel.is_active == True)
+                                .options(selectinload(UserModel.images)))
+               ).first()
     return db_user
 
 
@@ -41,7 +57,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(),
     user = (await db.scalars(select(UserModel)
                              .where(UserModel.email == form_data.username,
                                     UserModel.is_active == True)
-                             )).first
+                             )).first()
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

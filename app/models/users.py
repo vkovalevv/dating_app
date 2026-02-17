@@ -1,7 +1,7 @@
 from app.database import Base
 from sqlalchemy import Integer, String, Text, Numeric, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from geoalchemy2 import Geometry, WKBElement
+from geoalchemy2 import Geography, WKBElement
 
 
 class User(Base):
@@ -22,12 +22,12 @@ class User(Base):
     longitude: Mapped[float | None] = mapped_column(
         Numeric(11, 8), nullable=True, default=None)
     geo_location: Mapped[WKBElement | None] = mapped_column(
-        Geometry(geometry_type="POINT", srid=4326),
+        Geography(geometry_type="POINT", srid=4326),
         nullable=True,
         default=None
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     role: Mapped[bool] = mapped_column(String, default='user', nullable=False)
-    
+
     images: Mapped[list['Image']] = relationship(
         'Image', back_populates='user')

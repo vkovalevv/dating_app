@@ -3,6 +3,7 @@ from pydantic_extra_types.coordinate import Latitude, Longitude
 from typing import Annotated
 from .images import Image as ImageSchema
 
+
 class Coordinates(BaseModel):
     latitude: Latitude
     longitude: Longitude
@@ -26,12 +27,13 @@ class UserCreate(BaseModel):
                                        description='Фотографии пользователя')]
 
 
-class UserUpdate(BaseModel):
+class UserInfoUpdate(BaseModel):
+    first_name: Annotated[str,
+                          Field(..., min_length=2, description='Имя пользователя')]
+    last_name: Annotated[str, Field(..., description='Фамилия пользователя')]
     age: Annotated[int, Field(ge=18, description='Возраст пользователя')]
     description: Annotated[str | None, Field(
         max_length=250, description='Описание профиля пользователя')] = None
-    images: Annotated[list[HttpUrl], Field(
-        description='Фотографии пользователя')]
 
 
 class User(BaseModel):
@@ -65,6 +67,7 @@ class User(BaseModel):
         if not isinstance(data, dict):
             if hasattr(data, 'geo_location') and data.geo_location:
                 try:
+                    from shapely import wkb
                     point = wkb.loads(bytes(data.geo_location.data))
                     data.geo_location = f"POINT({point.x} {point.y})"
                 except:

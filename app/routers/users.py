@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from app.schemas.users import UserCreate, User as UserSchema, Coordinates
+from app.schemas.users import (UserCreate, User as UserSchema, Coordinates,
+                               UserInfoUpdate)
 
 from app.db import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 
 from app.models import User as UserModel, Image as ImageModel
@@ -93,3 +94,64 @@ async def uptade_location(coordinates: Coordinates,
     result_user = result.first()
 
     return result_user
+
+
+@router.delete('/{user_id}/profile/delete')
+async def delete_user(user_id: int,
+                      db: AsyncSession = Depends(get_async_db),
+                      current_user: UserModel = Depends(get_current_user)):
+
+    if current_user.id != user_id and current_user.role != 'admin':
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail='Only author or admins can perform this action.')
+
+    result = await db.scalars(select(UserModel)
+                              .where(UserModel.id == user_id,
+                                     UserModel.is_active == True))
+    db_user = result.first()
+
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='User not found.')
+
+    await db.execute(update(UserModel)
+                     .where(UserModel.id == user_id)
+                     .values(is_active=False))
+    await db.commit()
+    await db.refresh(db_user)
+    
+    return {'message': 'User deleted.'}
+
+
+@router.put('/{user_id}/profile/update', response_model=UserSchema)
+async def update_user_info(user_id: int,
+                           payload: UserInfoUpdate,
+                           db: AsyncSession = Depends(get_async_db),
+                           current_user: UserModel = Depends(get_current_user)):
+
+    if current_user.id != user_id and current_user.role != 'admin':
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail='Only author or admins can perform this action.')
+
+    result = await db.scalars(select(UserModel)
+                              .where(UserModel.is_active == True,
+                                     UserModel.id == user_id))
+    db_user = result.first()
+
+    if db_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='User not found.')
+
+    await db.execute(update(UserModel)
+                     .where(UserModel.id == user_id)
+                     .values(**payload.model_dump()))
+    await db.commit()
+    await db.refresh(db_user)
+
+    db_user = await db.scalars(select(UserModel)
+                               .where(UserModel.id == user_id,
+                                      UserModel.is_active == True)
+                               .options(selectinload(UserModel.images)))
+
+    db_user_result = db_user.first()
+    return db_user_result

@@ -1,5 +1,8 @@
 from pydantic import BaseModel
 
+class ImageCreate(BaseModel):
+    image: str 
+
 class Image(BaseModel):
     id: int
     user_id: int

@@ -32,6 +32,7 @@ async def create_user(user: UserCreate,
                         password=hash_password(user.password),
                         first_name=user.first_name,
                         last_name=user.last_name,
+                        gender=user.gender,
                         age=user.age,
                         description=user.description,
                         role=user.role
@@ -119,7 +120,7 @@ async def delete_user(user_id: int,
                      .values(is_active=False))
     await db.commit()
     await db.refresh(db_user)
-    
+
     return {'message': 'User deleted.'}
 
 

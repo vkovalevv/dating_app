@@ -18,6 +18,8 @@ class UserCreate(BaseModel):
     first_name: Annotated[str,
                           Field(..., min_length=2, description='Имя пользователя')]
     last_name: Annotated[str, Field(..., description='Фамилия пользователя')]
+    gender: Annotated[str, Field(..., pattern='^(male|female)$',
+                                 description='Пол пользователя.')]
     age: Annotated[int, Field(..., ge=18, description='Возраст пользователя')]
     description: Annotated[str | None, Field(
         max_length=250, description='Описание профиля пользователя')] = None
@@ -32,6 +34,8 @@ class UserInfoUpdate(BaseModel):
                           Field(..., min_length=2, description='Имя пользователя')]
     last_name: Annotated[str, Field(..., description='Фамилия пользователя')]
     age: Annotated[int, Field(ge=18, description='Возраст пользователя')]
+    gender: Annotated[str, Field(
+        pattern='^(male|female)$', description='Пол пользователя.')]
     description: Annotated[str | None, Field(
         max_length=250, description='Описание профиля пользователя')] = None
 
@@ -45,6 +49,8 @@ class User(BaseModel):
     first_name: Annotated[str,
                           Field(..., min_length=2, description='Имя пользователя')]
     last_name: Annotated[str, Field(..., description='Фамилия пользователя')]
+    gender: Annotated[str, Field(..., pattern='^(male|female)$',
+                                 description='Пол пользователя.')]
     age: Annotated[int, Field(..., ge=18, description='Возраст пользователя')]
     description: Annotated[str | None, Field(
         max_length=250, description='Описание профиля пользователя')] = None

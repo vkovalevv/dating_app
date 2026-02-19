@@ -58,6 +58,10 @@ async def delete_image(image_id: int,
 
     fl = False
     if image.is_main and len(images) != 1:
+        '''
+        If we delete an image and this image is not the only one the user has,
+        we change the main image
+        '''
         for i, img in enumerate(images):
             if fl:
                 img.is_main = True

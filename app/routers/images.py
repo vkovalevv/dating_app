@@ -46,7 +46,7 @@ async def delete_image(image_id: int,
     if image is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail='Image not found.')
-
+    
     if current_user.role != 'admin' and image.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detai='Only author or admins can perform this action.')

@@ -13,6 +13,7 @@ from app.auth import (verify_password, create_refresh_token,
 from fastapi.security import OAuth2PasswordRequestForm
 from geoalchemy2.functions import ST_GeogFromText
 
+
 router = APIRouter(prefix='/users',
                    tags=['users'])
 

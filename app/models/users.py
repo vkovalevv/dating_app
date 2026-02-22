@@ -1,5 +1,6 @@
 from app.database import Base
-from sqlalchemy import Integer, String, Text, Numeric, Boolean
+from sqlalchemy import (Integer, String, Text, 
+                        Numeric, Boolean, ForeignKey, Float)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from geoalchemy2 import Geography, WKBElement
 
@@ -32,3 +33,6 @@ class User(Base):
 
     images: Mapped[list['Image']] = relationship(
         'Image', back_populates='user')
+    preferences: Mapped['Preference'] = relationship(
+        'Preference', back_populates='user'
+    )

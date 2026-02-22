@@ -79,3 +79,6 @@ class User(BaseModel):
                 except:
                     data.geo_location = str(data.geo_location)
         return data
+
+
+

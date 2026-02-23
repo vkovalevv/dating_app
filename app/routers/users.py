@@ -84,7 +84,8 @@ async def uptade_location(coordinates: Coordinates,
     current_user.longitude = coordinates.longitude
 
     current_user.geo_location = ST_GeogFromText(
-        f'POINT({current_user.longitude} {current_user.latitude})'
+        f'POINT({current_user.longitude} {current_user.latitude})',
+        srid=4326
     )
     await db.commit()
     await db.refresh(current_user)

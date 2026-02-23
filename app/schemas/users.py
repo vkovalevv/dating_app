@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field, EmailStr, HttpUrl, ConfigDict, model_validator
+from pydantic import BaseModel, Field, EmailStr, HttpUrl, ConfigDict,    field_validator
 from pydantic_extra_types.coordinate import Latitude, Longitude
 from typing import Annotated
 from .images import Image as ImageSchema
-
+from geoalchemy2.shape import to_shape
 
 class Coordinates(BaseModel):
     latitude: Latitude
@@ -44,8 +44,6 @@ class User(BaseModel):
     id: int
     email: Annotated[EmailStr, Field(
         ..., description='Email пользователя')]
-    password: Annotated[str, Field(
-        ..., min_length=8, description='Пароль пользователя(минимум 8 символов)')]
     first_name: Annotated[str,
                           Field(..., min_length=2, description='Имя пользователя')]
     last_name: Annotated[str, Field(..., description='Фамилия пользователя')]
@@ -58,27 +56,20 @@ class User(BaseModel):
         description='Фотографии пользователя')]
     longitude: Longitude | None = None
     latitude: Latitude | None = None
-    geo_location: str | None = None
+    geo_location: Annotated[str | None, Field(
+        exclude=True, default=None)] = None
     is_active: bool
     role: Annotated[str, Field(pattern='^(user|admin)$')]
 
     model_config = ConfigDict(from_attributes=True)
 
-    @model_validator(mode='before')
-    @classmethod
-    def convert_geo(cls, data):
-        """
-        Конвертирует WKBElement в строку перед валидацией
-        """
-        if not isinstance(data, dict):
-            if hasattr(data, 'geo_location') and data.geo_location:
-                try:
-                    from shapely import wkb
-                    point = wkb.loads(bytes(data.geo_location.data))
-                    data.geo_location = f"POINT({point.x} {point.y})"
-                except:
-                    data.geo_location = str(data.geo_location)
-        return data
+    @field_validator("geo_location", mode="before")
+    def turn_geo_location_into_wkt(cls, value):
+        return to_shape(value).wkt
+    
 
 
+class UsersStack(BaseModel):
 
+    users: list[User]
+    model_config = ConfigDict(from_attributes=True)

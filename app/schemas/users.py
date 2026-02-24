@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, HttpUrl, ConfigDict,    field_validator
+from pydantic import BaseModel, Field, EmailStr, HttpUrl, ConfigDict, field_validator
 from pydantic_extra_types.coordinate import Latitude, Longitude
 from typing import Annotated
 from .images import Image as ImageSchema
@@ -25,8 +25,8 @@ class UserCreate(BaseModel):
         max_length=250, description='Описание профиля пользователя')] = None
     role: Annotated[str, Field(
         default='user', pattern='^(user|admin)$', description='Роль: user или admin')]
-    images: Annotated[list[str], Field(default_factory=list,
-                                       description='Фотографии пользователя')]
+    #images: Annotated[list[str], Field(default_factory=list,
+    #                                   description='Фотографии пользователя')]
 
 
 class UserInfoUpdate(BaseModel):
@@ -65,7 +65,8 @@ class User(BaseModel):
 
     @field_validator("geo_location", mode="before")
     def turn_geo_location_into_wkt(cls, value):
-        return to_shape(value).wkt
+        if value:
+            return to_shape(value).wkt
     
 
 

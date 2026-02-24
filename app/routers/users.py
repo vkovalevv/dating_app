@@ -13,6 +13,49 @@ from app.auth import (verify_password, create_refresh_token,
 from fastapi.security import OAuth2PasswordRequestForm
 from geoalchemy2.functions import ST_GeogFromText
 
+from pathlib import Path
+import uuid
+from fastapi import UploadFile, File
+from app.schemas.images import Image as ImageSchema
+
+BASE_DIR = Path(__file__).parent.parent.parent
+MEDIA_ROOT = BASE_DIR / 'media' / 'users'
+MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/wbp'}
+MAX_IMAGE_SIZE = 2 * 512 * 512
+
+
+async def save_user_image(file: UploadFile) -> str:
+    '''
+    Сохраняем изображение пользователя и возращаем его относительный URL.
+    '''
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Only JPEG, PNG or WBP are allowed.')
+
+    content = await file.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Image is too large.')
+
+    extension = Path(file.filename or '').suffix.lower() or '.jpg'
+    file_name = f'{uuid.uuid4()}{extension}'
+    file_path = MEDIA_ROOT / file_name
+    file_path.write_bytes(content)
+    return f'/media/products/{file_name}'
+
+
+def remove_user_image(url: str | None):
+    '''
+    Удаляет файл изображение, если он существует
+    '''
+    if not url:
+        return
+    relative_path = url.lstrip('/')
+    file_path = BASE_DIR / relative_path
+    if file_path.exists():
+        file_path.unlink()
+
 
 router = APIRouter(prefix='/users',
                    tags=['users'])
@@ -39,14 +82,6 @@ async def create_user(user: UserCreate,
                         role=user.role
                         )
     db.add(db_user)
-    await db.flush()
-
-    for i, image in enumerate(user.images):
-        img = ImageModel(user_id=db_user.id,
-                         image=image,
-                         order=i,
-                         is_main=(i == 0))
-        db.add(img)
     await db.commit()
     db_user = (await db.scalars(select(UserModel)
                                 .where(UserModel.email == user.email,
@@ -54,6 +89,26 @@ async def create_user(user: UserCreate,
                                 .options(selectinload(UserModel.images)))
                ).first()
     return db_user
+
+
+@router.post('/images', response_model=list[ImageSchema])
+async def upload_user_images(
+        images: list[UploadFile],
+        db: AsyncSession = Depends(get_async_db),
+        current_user: UserModel = Depends(get_current_user)):
+
+    for i, image in enumerate(images):
+        image_url = await save_user_image(image)
+        img = ImageModel(user_id=current_user.id,
+                         image=image_url,
+                         order=i,
+                         is_main=(i == 0))
+        db.add(img)
+    await db.commit()
+    images = (await db.scalars(select(ImageModel)
+                               .where(ImageModel.user_id == current_user.id))
+              ).all()
+    return images
 
 
 @router.post('/token')

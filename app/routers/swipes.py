@@ -5,16 +5,20 @@ from app.auth import get_current_user
 from app.models.swipes import Swipe as SwipeModel
 from app.models.users import User as UserModel
 
+from app.schemas.users import UserProfile
 from app.schemas.swipes import SwipeCreate, Swipe as SwipeSchema
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.swipes import SwipeCreate
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-router = APIRouter(prefix='/swipes',
-                   tags=['swipes'])
+from app.redis import get_next_from_stack
+
+router = APIRouter(prefix='/stack',
+                   tags=['stack'])
 
 
-@router.post('/make_swipe')
+@router.post('/swipe')
 async def make_swipe(swipe: SwipeCreate,
                      current_user: UserModel = Depends(get_current_user),
                      db: AsyncSession = Depends(get_async_db)) -> dict:
@@ -48,3 +52,19 @@ async def make_swipe(swipe: SwipeCreate,
         db.add(new_swipe)
     await db.commit()
     return {'detail': 'successfully swiped'}
+
+
+@router.get('/next', response_model=UserProfile)
+async def get_next(current_user: UserModel = Depends(get_current_user),
+                   db: AsyncSession = Depends(get_async_db)):
+    candidate_id = get_next_from_stack(current_user.id)
+
+    if not candidate_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Stack is empty.')
+
+    candidate = await db.scalar(select(UserModel)
+                                .options(selectinload(UserModel.images))
+                                .where(UserModel.id==candidate_id))
+
+    return candidate

@@ -4,6 +4,7 @@ from typing import Annotated
 from .images import Image as ImageSchema
 from geoalchemy2.shape import to_shape
 
+
 class Coordinates(BaseModel):
     latitude: Latitude
     longitude: Longitude
@@ -25,7 +26,7 @@ class UserCreate(BaseModel):
         max_length=250, description='Описание профиля пользователя')] = None
     role: Annotated[str, Field(
         default='user', pattern='^(user|admin)$', description='Роль: user или admin')]
-    #images: Annotated[list[str], Field(default_factory=list,
+    # images: Annotated[list[str], Field(default_factory=list,
     #                                   description='Фотографии пользователя')]
 
 
@@ -67,7 +68,22 @@ class User(BaseModel):
     def turn_geo_location_into_wkt(cls, value):
         if value:
             return to_shape(value).wkt
-    
+
+
+class UserProfile(BaseModel):
+    id: int
+    email: Annotated[EmailStr, Field(
+        ..., description='Email пользователя')]
+    first_name: Annotated[str,
+                          Field(..., min_length=2, description='Имя пользователя')]
+    last_name: Annotated[str, Field(..., description='Фамилия пользователя')]
+    gender: Annotated[str, Field(..., pattern='^(male|female)$',
+                                 description='Пол пользователя.')]
+    age: Annotated[int, Field(..., ge=18, description='Возраст пользователя')]
+    description: Annotated[str | None, Field(
+        max_length=250, description='Описание профиля пользователя')] = None
+    images: Annotated[list[ImageSchema], Field(
+        description='Фотографии пользователя')]
 
 
 class UsersStack(BaseModel):

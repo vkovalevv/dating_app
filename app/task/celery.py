@@ -5,7 +5,7 @@ from app.database import SessionLocal
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from geoalchemy2.functions import ST_DWithin, ST_GeogFromWKB
-from app.redis import save_stack_to_redis, get_stack_from_redis
+from app.redis import save_stack_to_redis
 from geoalchemy2 import WKTElement
 celery = Celery(
     __name__,
@@ -28,15 +28,16 @@ def generate_stack_for_user(self, user_id: int):
     try:
         user = db.scalars(select(UserModel)
                           .options(selectinload(UserModel.preferences))
-                          .where(UserModel.id == user_id)).first()
+                          .where(UserModel.id == user_id,
+                                 UserModel.is_active==True)).first()
 
         if not user or not user.preferences:
             return
 
         user_point = ST_GeogFromWKB(user.geo_location)
 
-        stack = db.scalars(
-            select(UserModel)
+        stack_ids = db.scalars(
+            select(UserModel.id)
             .where(
                 UserModel.is_active == True,
                 UserModel.id != user.id,
@@ -48,7 +49,7 @@ def generate_stack_for_user(self, user_id: int):
                     user.preferences.max_distance*1000
                 )
             )).all()
-        save_stack_to_redis(user, stack)
+        save_stack_to_redis(user.id, stack_ids)
     except Exception as e:
         raise self.retry(exc=e, countdown=60)
     finally:

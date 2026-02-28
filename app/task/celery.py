@@ -12,42 +12,57 @@ celery = Celery(
     broker='redis://127.0.0.1:6379/0',
     backend='redis://127.0.0.1:6379/1',
     broker_connection_retry_on_startup=True,
-    include=['app.task.celery']
 )
 
 celery.conf.beat_schedule = {
     'background-task': {
-        'task': 'generate_stack',
-        'schedule': crontab(hour=4, minute=0)
+        'task': 'app.task.generate_stack_for_all',
+        'schedule': crontab(hour=3, minute=0)
     }
 }
 
 
-@celery.task()
-def generate_stack():
+@celery.task(bind=True, max_retries=3)
+def generate_stack_for_user(self, user_id: int):
     db = SessionLocal()
-
     try:
-        users = db.scalars(select(UserModel)
-                           .options(selectinload(UserModel.preferences))
-                           .where(UserModel.is_active)
-                           .execution_options(yield_per=100))
-        for user in users:
-            if not user.preferences:
-                continue
+        user = db.scalars(select(UserModel)
+                          .options(selectinload(UserModel.preferences))
+                          .where(UserModel.id == user_id)).first()
 
-            user_point = ST_GeogFromWKB(user.geo_location)
+        if not user or not user.preferences:
+            return
 
-            stack = db.scalars(
-                select(UserModel)
-                .options(selectinload(UserModel.images))
-                .where(UserModel.is_active == True, UserModel.id != user.id)
-                .where(ST_DWithin(UserModel.geo_location, user_point, user.preferences.max_distance*1000))
-                .where(UserModel.gender == user.preferences.gender,
-                       UserModel.age >= user.preferences.age)).all()
-            save_stack_to_redis(user, stack)
+        user_point = ST_GeogFromWKB(user.geo_location)
+
+        stack = db.scalars(
+            select(UserModel)
+            .where(
+                UserModel.is_active == True,
+                UserModel.id != user.id,
+                UserModel.gender == user.preferences.gender,
+                UserModel.age >= user.preferences.age,
+                ST_DWithin(
+                    UserModel.geo_location,
+                    user_point,
+                    user.preferences.max_distance*1000
+                )
+            )).all()
+        save_stack_to_redis(user, stack)
     except Exception as e:
-        print(e)
-        raise e
+        raise self.retry(exc=e, countdown=60)
+    finally:
+        db.close()
+
+
+@celery.task()
+def generate_stack_for_all():
+    db = SessionLocal()
+    try:
+        users = db.scalars(select(UserModel.id)
+                           .where(UserModel.is_active == True,
+                                  UserModel.preferences.has())).all()
+        for user_id in users:
+            generate_stack_for_user.apply_async([user_id])
     finally:
         db.close()

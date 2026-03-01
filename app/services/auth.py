@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.users import User as UserModel
-from app.config import SECRET_KEY, ALGORITHM
+from app.config import settings
 from app.db import get_async_db
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -36,7 +36,8 @@ def create_access_token(data: dict):
         'token_type': 'access'
     }
     )
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.SECRET_KEY,
+                      algorithm=settings.ALGORITHM)
 
 
 def create_refresh_token(data: dict):
@@ -50,7 +51,7 @@ def create_refresh_token(data: dict):
         "exp": expire,
         "token_type": "refresh",
     })
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.SECRET_KEY, settings.ALGORITHM)
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme),
@@ -64,9 +65,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        payload = jwt.decode(token, settings.SECRET_KEY,
+                             algorithms=[settings.ALGORITHM])
+        id: int = int(payload.get("sub"))
+        if id is None:
             raise credentials_exception
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -78,7 +80,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
         raise credentials_exception
     result = await db.scalars(
         select(UserModel)
-        .where(UserModel.email == email,
+        .where(UserModel.id == id,
                UserModel.is_active == True)
     )
     user = result.first()

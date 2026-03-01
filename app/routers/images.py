@@ -8,7 +8,7 @@ from app.models.images import Image as ImageModel
 from app.models.users import User as UserModel
 from app.schemas.images import Image as ImageSchema, ImageCreate
 
-from app.auth import get_current_user
+from app.services.auth import get_current_user
 from sqlalchemy import select
 router = APIRouter(prefix='/images',
                    tags=['images'])

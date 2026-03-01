@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.db import get_async_db
-from app.auth import get_current_user
+from app.services.auth import get_current_user
 
 from app.models.swipes import Swipe as SwipeModel
 from app.models.users import User as UserModel

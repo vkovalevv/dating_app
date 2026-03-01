@@ -3,10 +3,12 @@ from app.schemas.preferences import (Preference as PreferenceSchema,
                                      PreferenceCreate)
 from app.models.preferences import Preference as PreferenceModel
 from app.models.users import User as UserModel
-from app.auth import get_current_user
+from app.services.auth import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_async_db
 from sqlalchemy import select, update
+
+from app.task.celery import generate_stack_for_user
 
 router = APIRouter(prefix='/preferences',
                    tags=['preferences'])
@@ -34,6 +36,8 @@ async def create_preference(preference: PreferenceCreate,
     db.add(db_preference)
     await db.commit()
     await db.refresh(db_preference)
+
+    generate_stack_for_user.apply_async(current_user.id)
     return db_preference
 
 

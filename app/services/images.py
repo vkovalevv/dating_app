@@ -32,13 +32,5 @@ async def save_user_image(file: UploadFile) -> str:
     return url
 
 
-def remove_user_image(url: str | None):
-    '''
-    Удаляет файл изображение, если он существует
-    '''
-    if not url:
-        return
-    relative_path = url.lstrip('/')
-    file_path = BASE_DIR / relative_path
-    if file_path.exists():
-        file_path.unlink()
+async def delete_user_image(file_name:str):
+    await s3_client.delete_file(file_name)

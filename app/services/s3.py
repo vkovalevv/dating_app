@@ -36,6 +36,12 @@ class S3Client:
             )
         return f"https://{self.bucket_uuid}.selstorage.ru/{file_name}"
 
+    async def delete_file(self, file_name):
+        async with self.get_client() as client:
+            await client.delete_object(
+                Bucket=self.bucket_name,
+                Key=file_name
+            )
 
 s3_client = S3Client(
     access_key=settings.S3_ACCESS_KEY,

@@ -26,7 +26,7 @@ async def make_swipe(swipe: SwipeCreate,
     if swipe.target_user == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="You can't swipe yourself")
-
+    
     check_swipe_result = await db.scalars(select(SwipeModel)
                                           .where(SwipeModel.first_user_id == current_user.id,
                                                  SwipeModel.second_user_id == swipe.target_user))

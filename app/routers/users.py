@@ -9,59 +9,17 @@ from sqlalchemy.orm import selectinload
 
 from app.models import User as UserModel, Image as ImageModel
 from app.services.auth import (verify_password, create_refresh_token,
-                      create_access_token, hash_password, get_current_user)
+                               create_access_token, hash_password, get_current_user)
 from fastapi.security import OAuth2PasswordRequestForm
 from geoalchemy2.functions import ST_GeogFromText
 
 import jwt
-from pathlib import Path
-import uuid
-from fastapi import UploadFile, File
+from fastapi import UploadFile
 from app.schemas.images import Image as ImageSchema
 from app.config import settings
 from app.redis import redis_tokens
 
-from app.services.s3 import s3_client
-
-BASE_DIR = Path(__file__).parent.parent.parent
-MEDIA_ROOT = BASE_DIR / 'media' / 'users'
-MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
-ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
-MAX_IMAGE_SIZE = 2 * 512 * 512
-
-
-async def save_user_image(file: UploadFile) -> str:
-    '''
-    Сохраняем изображение пользователя и возращаем его относительный URL.
-    '''
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Only JPEG, PNG or WBP are allowed.')
-
-    content = await file.read()
-    if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Image is too large.')
-
-    extension = Path(file.filename or '').suffix.lower() or '.jpg'
-    file_name = f'{uuid.uuid4()}{extension}'
-    url = await s3_client.upload_file(
-        content, file_name, file.content_type
-    )
-    return url
-
-
-def remove_user_image(url: str | None):
-    '''
-    Удаляет файл изображение, если он существует
-    '''
-    if not url:
-        return
-    relative_path = url.lstrip('/')
-    file_path = BASE_DIR / relative_path
-    if file_path.exists():
-        file_path.unlink()
-
+from app.services.images import save_user_image
 
 router = APIRouter(prefix='/users',
                    tags=['users'])
@@ -163,8 +121,8 @@ async def refresh(data: RefreshSchema, db: AsyncSession = Depends(get_async_db))
     new_refresh_token = create_refresh_token(data={'sub': str(user_id)})
 
     redis_tokens.setex(f'refresh:{user_id}',
-                             60*60*24*30,
-                             new_refresh_token)
+                       60*60*24*30,
+                       new_refresh_token)
 
     return {'access': new_access_token,
             'refresh': new_refresh_token}

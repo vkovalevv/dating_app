@@ -29,7 +29,7 @@ def generate_stack_for_user(self, user_id: int):
         user = db.scalars(select(UserModel)
                           .options(selectinload(UserModel.preferences))
                           .where(UserModel.id == user_id,
-                                 UserModel.is_active==True)).first()
+                                 UserModel.is_active == True)).first()
 
         if not user or not user.preferences:
             return

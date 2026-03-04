@@ -17,7 +17,7 @@ import jwt
 from fastapi import UploadFile
 from app.schemas.images import Image as ImageSchema
 from app.config import settings
-from app.redis import redis_tokens
+from app.redis_client import redis_tokens
 
 from app.services.images import save_user_image
 

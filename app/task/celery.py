@@ -5,7 +5,7 @@ from app.database import SessionLocal
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from geoalchemy2.functions import ST_DWithin, ST_GeogFromWKB
-from app.redis import save_stack_to_redis
+from app.redis_client import save_stack_to_redis
 from geoalchemy2 import WKTElement
 celery = Celery(
     __name__,

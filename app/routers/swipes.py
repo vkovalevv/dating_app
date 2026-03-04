@@ -12,7 +12,7 @@ from app.schemas.swipes import SwipeCreate
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.redis import get_next_from_stack
+from app.redis_client import get_next_from_stack
 
 router = APIRouter(prefix='/stack',
                    tags=['stack'])

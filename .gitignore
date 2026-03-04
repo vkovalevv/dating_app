@@ -7,5 +7,6 @@ logs/
 venv/
 .mypy_cache
 .env
+.env.test
 .DS_Store
 *.pyc

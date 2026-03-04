@@ -24,7 +24,7 @@ async def log_requests(request: Request, call_next):
 
             if response.status_code >= 400:
                 logger.warning(
-                    '{} {} - {} - {:.3}s',
+                    '{} {} - {} - {:.4f}s',
                     request.method,
                     request.url.path,
                     response.status_code,
@@ -32,7 +32,7 @@ async def log_requests(request: Request, call_next):
                 )
             else:
                 logger.info(
-                    '{} {} - {} - {:.3f}s',
+                    '{} {} - {} - {:.4f}s',
                     request.method,
                     request.url.path,
                     response.status_code,

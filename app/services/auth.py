@@ -87,3 +87,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
     if user is None:
         raise credentials_exception
     return user
+
+
+async def get_user_from_token(token: str, db: AsyncSession) -> UserModel | None:
+    try:
+        payload = jwt.decode(token, key=settings.SECRET_KEY,
+                             algorithms=[settings.ALGORITHM])
+        user_id: int = int(payload.get('sub'))
+        if user_id is None:
+            return None
+    except (jwt.ExpiredSignatureError, jwt.PyJWTError):
+        return None
+
+    result = await db.scalars(select(UserModel)
+                              .where(UserModel.id == user_id,
+                                     UserModel.is_active == True))
+    return result.first()

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from app.routers import users, images, swipes, preferences
+from app.routers import users, images, swipes, preferences, chat
 from app.task.celery import generate_stack_for_all
 from app.logger import logger
 from uuid import uuid4
@@ -11,7 +11,7 @@ app.include_router(users.router)
 app.include_router(images.router)
 app.include_router(swipes.router)
 app.include_router(preferences.router)
-
+app.include_router(chat.router)
 
 @app.middleware('http')
 async def log_requests(request: Request, call_next):

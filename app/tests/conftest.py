@@ -1,5 +1,6 @@
 import pytest_asyncio
-from app.database import create_async_engine, async_sessionmaker, Base
+from app.database import Base
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from dotenv import load_dotenv
 from httpx import AsyncClient, ASGITransport
 from app.main import app
@@ -72,7 +73,7 @@ async def create_user(async_client):
         "gender": "male",
         "age": 20,
         "role": "user"
-        })
+    })
 
     assert response.status_code == 201
     return response.json()

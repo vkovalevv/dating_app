@@ -87,7 +87,6 @@ class UserProfile(BaseModel):
 
 
 class UsersStack(BaseModel):
-
     users: list[User]
     model_config = ConfigDict(from_attributes=True)
 

@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     S3_ENDPOINT_URL: str
     S3_BUCKET_NAME: str
 
+    SENDER_USERNAME: str
+    SENDER_PASSWORD: str
+
+    RECEIVER_USERNAME: str
+    RECEIVER_PASSWORD: str
+
     class Config:
         env_file = ".env"
 

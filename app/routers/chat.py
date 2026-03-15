@@ -40,9 +40,10 @@ async def chat_endpoint(websocket: WebSocket,
     unread_messages = unread.all()
 
     for msg in unread_messages:
-        await websocket.send_json('from': msg.sender_id,
+        await websocket.send_json({'from': msg.sender_id,
                                   'text': msg.text,
-                                  'created_at': msg.created_at.isoformat())
+                                  'created_at': msg.created_at.isoformat()})
+        print(msg.text)
         msg.is_read = True
 
     await db.commit()

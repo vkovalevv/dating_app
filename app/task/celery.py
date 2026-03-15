@@ -1,4 +1,5 @@
-from celery import Celery
+import asyncio
+from celery import Celery, group
 from celery.schedules import crontab
 from app.models.users import User as UserModel
 from app.database import SessionLocal
@@ -31,6 +32,7 @@ def generate_stack_for_user(self, user_id: int):
                           .where(UserModel.id == user_id,
                                  UserModel.is_active == True)).first()
 
+
         if not user or not user.preferences:
             return
 
@@ -49,6 +51,11 @@ def generate_stack_for_user(self, user_id: int):
                     user.preferences.max_distance*1000
                 )
             )).all()
+        
+        if not stack_ids:
+            return
+
+        print(stack_ids)
         save_stack_to_redis(user.id, stack_ids)
     except Exception as e:
         raise self.retry(exc=e, countdown=60)
@@ -60,10 +67,10 @@ def generate_stack_for_user(self, user_id: int):
 def generate_stack_for_all():
     db = SessionLocal()
     try:
-        users = db.scalars(select(UserModel.id)
+        user_ids = db.scalars(select(UserModel.id)
                            .where(UserModel.is_active == True,
                                   UserModel.preferences.has())).all()
-        for user_id in users:
-            generate_stack_for_user.apply_async([user_id])
     finally:
         db.close()
+    
+    group(generate_stack_for_user.s(usr_id) for usr_id in user_ids).apply_async()

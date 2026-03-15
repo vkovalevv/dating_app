@@ -5,7 +5,7 @@ from app.models.swipes import SwipeAction
 
 class SwipeCreate(BaseModel):
     target_user: Annotated[int, Field(...)]
-    acion: Annotated[SwipeAction,
+    action: Annotated[SwipeAction,
                      Field(..., description='Действие: pass=0; like=1')]
 
 

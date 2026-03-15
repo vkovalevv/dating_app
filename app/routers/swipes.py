@@ -6,12 +6,11 @@ from app.models.swipes import Swipe as SwipeModel
 from app.models.users import User as UserModel
 
 from app.schemas.users import UserProfile
-from app.schemas.swipes import SwipeCreate, Swipe as SwipeSchema
+from app.schemas.swipes import SwipeCreate, Swipe as SwipeSchema, SwipeAction
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.swipes import SwipeCreate
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-
+from app.models.chat import Conversation
 from app.redis_client import get_next_from_stack
 
 router = APIRouter(prefix='/stack',
@@ -26,7 +25,7 @@ async def make_swipe(swipe: SwipeCreate,
     if swipe.target_user == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="You can't swipe yourself")
-    
+
     check_swipe_result = await db.scalars(select(SwipeModel)
                                           .where(SwipeModel.first_user_id == current_user.id,
                                                  SwipeModel.second_user_id == swipe.target_user))
@@ -44,11 +43,20 @@ async def make_swipe(swipe: SwipeCreate,
                                               SwipeModel.second_user_id == current_user.id))
     db_swipe = db_swipe_result.first()
     if db_swipe is not None:
-        db_swipe.second_action = swipe.acion.value
+        db_swipe.second_action = swipe.action.value
+
+        if db_swipe.first_action == SwipeAction.LIKE.value and db_swipe.second_action == SwipeAction.LIKE.value:
+            first_user, second_user = sorted(
+                [current_user.id, swipe.target_user])
+            conversation = Conversation(
+                first_user=first_user, second_user=second_user)
+            db.add(conversation)
+            await db.flush()
+
     else:
         new_swipe = SwipeModel(first_user_id=current_user.id,
                                second_user_id=swipe.target_user,
-                               first_action=swipe.acion.value)
+                               first_action=swipe.action.value)
         db.add(new_swipe)
     await db.commit()
     return {'detail': 'successfully swiped'}
@@ -65,6 +73,6 @@ async def get_next(current_user: UserModel = Depends(get_current_user),
 
     candidate = await db.scalar(select(UserModel)
                                 .options(selectinload(UserModel.images))
-                                .where(UserModel.id==candidate_id))
+                                .where(UserModel.id == candidate_id))
 
     return candidate

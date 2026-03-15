@@ -28,9 +28,9 @@ async def chat_endpoint(websocket: WebSocket,
         select(Message)
         .where(
             Message.conversation_id.in_(
-                select(Conversation)
-                .where(Conversation.first_user == user.id |
-                       Conversation.second_user == user.id)
+                select(Conversation.id)
+                .where((Conversation.first_user == user.id) |
+                       (Conversation.second_user == user.id))
             ),
             Message.sender_id != user.id,
             Message.is_read == False
@@ -60,12 +60,10 @@ async def chat_endpoint(websocket: WebSocket,
 
             conversation = conversation_result.first()
             if not conversation:
-                conversation = Conversation(
-                    first_user=first_user, second_user=second_user)
-                db.add(conversation)
-                await db.flush()
+                await websocket.send_json({'error': 'conversation not found'})
+                continue
 
-            message = Message(sender_id=user.id, conversation_id=conversation,
+            message = Message(sender_id=user.id, conversation_id=conversation.id,
                               text=data['text'])
             db.add(message)
             await db.commit()

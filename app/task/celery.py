@@ -1,4 +1,3 @@
-import asyncio
 from celery import Celery, group
 from celery.schedules import crontab
 from app.models.users import User as UserModel
@@ -8,10 +7,12 @@ from sqlalchemy.orm import selectinload
 from geoalchemy2.functions import ST_DWithin, ST_GeogFromWKB
 from app.redis_client import save_stack_to_redis
 from geoalchemy2 import WKTElement
+from app.config import settings
+
 celery = Celery(
     __name__,
-    broker='redis://127.0.0.1:6379/0',
-    backend='redis://127.0.0.1:6379/1',
+    broker=settings.CELERY_BROKER_URL,
+    backend=settings.CELERY_BACKEND_URL,
     broker_connection_retry_on_startup=True,
 )
 
@@ -32,7 +33,6 @@ def generate_stack_for_user(self, user_id: int):
                           .where(UserModel.id == user_id,
                                  UserModel.is_active == True)).first()
 
-
         if not user or not user.preferences:
             return
 
@@ -51,7 +51,7 @@ def generate_stack_for_user(self, user_id: int):
                     user.preferences.max_distance*1000
                 )
             )).all()
-        
+
         if not stack_ids:
             return
 
@@ -68,9 +68,10 @@ def generate_stack_for_all():
     db = SessionLocal()
     try:
         user_ids = db.scalars(select(UserModel.id)
-                           .where(UserModel.is_active == True,
-                                  UserModel.preferences.has())).all()
+                              .where(UserModel.is_active == True,
+                                     UserModel.preferences.has())).all()
     finally:
         db.close()
-    
-    group(generate_stack_for_user.s(usr_id) for usr_id in user_ids).apply_async()
+
+    group(generate_stack_for_user.s(usr_id)
+          for usr_id in user_ids).apply_async()

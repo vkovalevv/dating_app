@@ -43,7 +43,6 @@ async def chat_endpoint(websocket: WebSocket,
         await websocket.send_json({'from': msg.sender_id,
                                   'text': msg.text,
                                   'created_at': msg.created_at.isoformat()})
-        print(msg.text)
         msg.is_read = True
 
     await db.commit()
@@ -71,4 +70,6 @@ async def chat_endpoint(websocket: WebSocket,
 
             await manager.send_personal(data['text'], to_user_id=data['to'])
     except WebSocketDisconnect:
+        pass
+    finally:
         manager.disconnect(user.id)

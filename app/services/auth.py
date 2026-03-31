@@ -6,6 +6,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.models.users import User as UserModel
 from app.config import settings
@@ -82,6 +83,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
         select(UserModel)
         .where(UserModel.id == id,
                UserModel.is_active == True)
+        .options(selectinload(UserModel.preferences))
     )
     user = result.first()
     if user is None:

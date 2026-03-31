@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from app.schemas.users import (UserCreate, User as UserSchema, Coordinates,
                                UserInfoUpdate, RefreshSchema)
 
+from app.schemas.preferences import Preference as PreferenceSchema
+
 from app.db import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -24,6 +26,12 @@ from app.services.images import save_user_image
 router = APIRouter(prefix='/users',
                    tags=['users'])
 
+
+@router.get('/me/preferences', response_model=PreferenceSchema)
+async def get_preferences(current_user: UserModel = Depends(get_current_user)):
+    if not current_user.preferences:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User has no preferences')
+    return current_user.preferences
 
 @router.post('/', response_model=UserSchema, status_code=201)
 async def create_user(user: UserCreate,

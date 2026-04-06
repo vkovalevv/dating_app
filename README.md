@@ -27,7 +27,17 @@ Dating app with realtime chat, swipes and matching.
 - [ ] match notification via websocket
 - [ ] push notifications via firebase when user is offline
 - [ ] deploy to vps
+
+## Setup
+
+Copy `.env.example` to `.env` and fill in the values:
+```bash
+cp .env.example .env
+```
  
-## Running locally
- 
-*coming soon*
+## Running locally with Docker
+```bash
+docker-compose up --build
+```
+
+The app will be available at `http://localhost:8000`

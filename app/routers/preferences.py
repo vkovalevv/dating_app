@@ -37,7 +37,7 @@ async def create_preference(preference: PreferenceCreate,
     await db.commit()
     await db.refresh(db_preference)
 
-    generate_stack_for_user.apply_async(current_user.id)
+    generate_stack_for_user.apply_async(args=[current_user.id])
     return db_preference
 
 
@@ -63,4 +63,6 @@ async def update_preference(
                      )
     await db.commit()
     await db.refresh(db_preference)
+
+    generate_stack_for_user.apply_async(args=[current_user.id])
     return db_preference

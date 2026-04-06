@@ -95,6 +95,7 @@ async def get_user_from_token(token: str, db: AsyncSession) -> UserModel | None:
     try:
         payload = jwt.decode(token, key=settings.SECRET_KEY,
                              algorithms=[settings.ALGORITHM])
+        
         user_id: int = int(payload.get('sub'))
         if user_id is None:
             return None

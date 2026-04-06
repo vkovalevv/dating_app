@@ -41,6 +41,19 @@ class UserInfoUpdate(BaseModel):
         max_length=250, description='Описание профиля пользователя')] = None
 
 
+class UserInfoPartlyUpdate(BaseModel):
+    first_name: Annotated[str | None,
+                          Field(..., min_length=2, description='Имя пользователя')] = None
+    last_name: Annotated[str | None,
+                         Field(..., description='Фамилия пользователя')] = None
+    age: Annotated[int | None, Field(
+        ge=18, description='Возраст пользователя')] = None
+    gender: Annotated[str | None, Field(
+        pattern='^(male|female)$', description='Пол пользователя.')] = None
+    description: Annotated[str | None, Field(
+        max_length=250, description='Описание профиля пользователя')] = None
+
+
 class User(BaseModel):
     id: int
     email: Annotated[EmailStr, Field(

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from app.schemas.users import (UserCreate, User as UserSchema, Coordinates,
-                               UserInfoUpdate, RefreshSchema)
+                               UserInfoUpdate, RefreshSchema, UserProfile, UserInfoPartlyUpdate)
 
 from app.schemas.preferences import Preference as PreferenceSchema
 
@@ -30,8 +30,10 @@ router = APIRouter(prefix='/users',
 @router.get('/me/preferences', response_model=PreferenceSchema)
 async def get_preferences(current_user: UserModel = Depends(get_current_user)):
     if not current_user.preferences:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User has no preferences')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail='User has no preferences')
     return current_user.preferences
+
 
 @router.post('/', response_model=UserSchema, status_code=201)
 async def create_user(user: UserCreate,
@@ -218,3 +220,31 @@ async def update_user_info(user_id: int,
 
     db_user_result = db_user.first()
     return db_user_result
+
+
+@router.patch('/me/update-info', response_model=UserSchema)
+async def partly_update_user(payload: UserInfoPartlyUpdate,
+                             current_user: UserModel = Depends(
+                                 get_current_user),
+                             db: AsyncSession = Depends(get_async_db)):
+    await db.execute(update(UserModel)
+                     .where(UserModel.id == current_user.id)
+                     .values(**payload.model_dump(exclude_unset=True)))
+    await db.commit()
+
+    db_user_result = await db.scalars(select(UserModel)
+                                      .where(UserModel.id == current_user.id,
+                                             UserModel.is_active == True)
+                                      .options(selectinload(UserModel.images)))
+    db_user = db_user_result.first()
+    return db_user
+
+
+@router.get('/me', response_model=UserProfile)
+async def get_current_profile(current_user: UserModel = Depends(get_current_user),
+                              db: AsyncSession = Depends(get_async_db)):
+    user_result = await db.scalars(select(UserModel)
+                                   .where(UserModel.id == current_user.id)
+                                   .options(selectinload(UserModel.images)))
+    user = user_result.first()
+    return user

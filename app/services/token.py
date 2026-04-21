@@ -1,6 +1,6 @@
 from redis import Redis
 from app.redis_client import redis_tokens
-from .auth import create_refresh_token
+
 REFRESH_TOKEN_TTL = 60*60*24*30
 
 
@@ -28,8 +28,22 @@ class TokenService:
         pipeline.setex(f'refresh_token:{new_token}',
                        REFRESH_TOKEN_TTL, user_id)
         pipeline.sadd(f'user_tokens:{user_id}', new_token)
-        pipeline.expire(f'user_tokens:{user_id}')
+        pipeline.expire(f'user_tokens:{user_id}', REFRESH_TOKEN_TTL)
+        pipeline.execute()
+
+    def revoke_all_tokens(self, user_id: int) -> None:
+        tokens = self.redis.smembers(f'user_tokens:{user_id}')
+        pipeline = self.redis.pipeline()
+        for tkn in tokens:
+            pipeline.delete(f'refresh_token:{tkn}')
+        pipeline.delete(f'user_tokens:{user_id}')
+        pipeline.execute()
+
+    def revoke_token(self, user_id: int, token: str) -> None:
+        pipeline = self.redis.pipeline()
+        pipeline.delete(f'refresh_token:{token}')
+        pipeline.srem(f'user_tokens:{user_id}', token)
         pipeline.execute()
 
 
-redis = TokenService(redis=redis_tokens)
+redis_service = TokenService(redis=redis_tokens)

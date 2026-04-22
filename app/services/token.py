@@ -46,4 +46,4 @@ class TokenService:
         pipeline.execute()
 
 
-redis_service = TokenService(redis=redis_tokens)
+token_service = TokenService(redis=redis_tokens)

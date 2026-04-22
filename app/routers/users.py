@@ -16,10 +16,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from geoalchemy2.functions import ST_GeogFromText
 
 import jwt
-from fastapi import UploadFile
+from fastapi import UploadFile, Response
 from app.schemas.images import Image as ImageSchema
 from app.config import settings
-from app.redis_client import redis_tokens
+from app.services.token import token_service, REFRESH_TOKEN_TTL
 
 from app.services.images import save_user_image
 
@@ -86,7 +86,8 @@ async def upload_user_images(
 
 
 @router.post('/token')
-async def login(form_data: OAuth2PasswordRequestForm = Depends(),
+async def login(response: Response,
+                form_data: OAuth2PasswordRequestForm = Depends(),
                 db: AsyncSession = Depends(get_async_db)):
     user = (await db.scalars(select(UserModel)
                              .where(UserModel.email == form_data.username,
@@ -103,8 +104,15 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(),
     refresh_token = create_refresh_token(
         data={"sub": str(user.id)})
 
-    redis_tokens.setex(f'refresh:{user.id}', 60*60*24*30, refresh_token)
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    response.set_cookie(
+        key='refresh_token',
+        value=refresh_token,
+        max_age=REFRESH_TOKEN_TTL,
+        samesite='lax',
+        httponly=True
+    )
+    token_service.save_refresh_token(user_id=user.id, token=refresh_token)
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post('/refresh-token')

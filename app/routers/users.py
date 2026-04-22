@@ -16,7 +16,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from geoalchemy2.functions import ST_GeogFromText
 
 import jwt
-from fastapi import UploadFile, Response
+from fastapi import UploadFile, Response, Request
 from app.schemas.images import Image as ImageSchema
 from app.config import settings
 from app.services.token import token_service, REFRESH_TOKEN_TTL
@@ -116,34 +116,45 @@ async def login(response: Response,
 
 
 @router.post('/refresh-token')
-async def refresh(data: RefreshSchema, db: AsyncSession = Depends(get_async_db)):
+async def refresh(
+        response: Response,
+        request: Request):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail='Token has expired.',
         headers={
             'WWW-Authenticate': 'Bearer'
         })
+
+    refresh_token = request.cookies.get('refresh_token')
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
     try:
-        payload = jwt.decode(data.refresh_token,
+        payload = jwt.decode(refresh_token,
                              key=settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id = int(payload['sub'])
+        user = int(payload['sub'])
     except jwt.PyJWTError:
         raise credentials_exception
 
-    stored = redis_tokens.get(f'refresh:{user_id}')
-
-    if not stored or stored != data.refresh_token:
-        raise credentials_exception
-
-    new_access_token = create_access_token(data={'sub': str(user_id)})
-    new_refresh_token = create_refresh_token(data={'sub': str(user_id)})
-
-    redis_tokens.setex(f'refresh:{user_id}',
-                       60*60*24*30,
-                       new_refresh_token)
-
-    return {'access': new_access_token,
-            'refresh': new_refresh_token}
+    user_id = token_service.get_user_id(refresh_token)
+    if not user_id:
+        # token has been stolen
+        token_service.revoke_all_tokens(user)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    else:
+        new_access_token = create_access_token(data={'sub': str(user_id)})
+        new_refresh_token = create_refresh_token(data={'sub': str(user_id)})
+        token_service.rotate_refresh_token(
+            user_id, refresh_token, new_refresh_token)
+        response.set_cookie(
+            key='refresh_token',
+            value=new_refresh_token,
+            max_age=REFRESH_TOKEN_TTL,
+            httponly=True,
+            samesite='lax'
+        )
+    return {'access': new_access_token}
 
 
 @router.put('/update-location', response_model=UserSchema)

@@ -115,6 +115,32 @@ async def login(response: Response,
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.post('/logout')
+async def logout(response: Response,
+                 request: Request):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail='Token has expired.',
+        headers={
+            'WWW-Authenticate': 'Bearer'
+        })
+
+    refresh_token = request.cookies.get('refresh_token')
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        payload = jwt.decode(refresh_token,
+                             key=settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user = int(payload['sub'])
+    except jwt.PyJWTError:
+        raise credentials_exception
+
+    response.delete_cookie('refresh_token')
+    token_service.revoke_token(user_id=user, token=refresh_token)
+    return {'message': 'success'}
+
+
 @router.post('/refresh-token')
 async def refresh(
         response: Response,

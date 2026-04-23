@@ -1,9 +1,11 @@
 from redis import Redis
 from app.schemas.users import UsersStack
 from app.models.users import User as UserModel
-
-redis_cache = Redis(host='redis', port=6379, db=2, decode_responses=True)
-redis_tokens = Redis(host='redis', port=6379, db=3, decode_responses=True)
+from app.config import settings
+redis_cache = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT,
+                    db=2, decode_responses=True)
+redis_tokens = Redis(host=settings.REDIS_HOST,
+                     port=settings.REDIS_PORT, db=3, decode_responses=True)
 
 
 def save_stack_to_redis(user_id: int, stack_ids: list[int]):

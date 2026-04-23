@@ -2,6 +2,7 @@ from aiobotocore.session import get_session
 from contextlib import asynccontextmanager
 from app.config import settings
 
+
 class S3Client:
     def __init__(
             self,
@@ -16,7 +17,7 @@ class S3Client:
             'aws_secret_access_key': secret_key,
             'endpoint_url': endpoint_url
         }
-        
+
         self.bucket_name = bucket_name
         self.bucket_uuid = bucket_uuid
         self.session = get_session()
@@ -42,6 +43,7 @@ class S3Client:
                 Bucket=self.bucket_name,
                 Key=file_name
             )
+
 
 s3_client = S3Client(
     access_key=settings.S3_ACCESS_KEY,

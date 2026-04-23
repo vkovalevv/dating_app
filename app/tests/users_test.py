@@ -2,18 +2,22 @@ import pytest
 from app.models.users import User
 from app.services.auth import hash_password
 from app.services.auth import pwd_context
+from unittest.mock import patch, MagicMock
 
 
 @pytest.mark.asyncio
 async def test_login(async_client, create_user):
-    response = await async_client.post('/users/token', data={
-        'username': "test@example.com",
-        'password': 'test11012005'
-    })
-    assert response.status_code == 200
-    assert 'access_token' in response.json()
-    assert 'refresh_token' in response.json()
+    with patch('app.routers.users.token_service') as mock_service:
+        mock_service.save_refresh_token = MagicMock()
 
+        response = await async_client.post('/users/token', data={
+            'username': "test@example.com",
+            'password': 'test11012005'
+        })
+        assert response.status_code == 200
+        assert 'access_token' in response.json()
+        assert 'refresh_token' in response.cookies
+        assert 'HttpOnly' in response.headers.get('set-cookie','')
 
 @pytest.mark.asyncio
 async def test_wrong_password_login(async_client, create_user):

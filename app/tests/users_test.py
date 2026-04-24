@@ -23,9 +23,9 @@ async def test_login(async_client, create_user):
 
 
 @pytest.mark.asyncio
-async def test_refresh_stolen(async_client, create_user):
+async def test_refresh_stolen(async_client):
     # token has been stolen
-    with patch('app.routers.users.token_service') as mock_service:
+    with patch('app.routers.users.token_service', spec_set=TokenService) as mock_service:
         mock_service.get_user_id.return_value = None
         response = await async_client.post(
             '/users/refresh-token',
@@ -35,9 +35,9 @@ async def test_refresh_stolen(async_client, create_user):
 
 
 @pytest.mark.asyncio
-async def test_refresh_success(async_client, create_user):
+async def test_refresh_success(async_client):
     # casual refreshing
-    with patch('app.routers.users.token_service') as mock_service:
+    with patch('app.routers.users.token_service', spec_set=TokenService) as mock_service:
         mock_service.get_user_id.return_value = 42
         second_response = await async_client.post(
             '/users/refresh-token',
@@ -66,3 +66,16 @@ async def test_wrong_password_login(async_client):
         'password': 'test11012004'
     })
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout(async_client):
+    with patch('app.routers.users.token_service', spec_set=TokenService) as mock_service:
+
+        response = await async_client.post(
+            '/users/logout',
+            cookies={'refresh_token': create_refresh_token(data={'sub': '42'})})
+
+        assert response.status_code == 200
+        mock_service.revoke_token.assert_called_once()
+        assert 'refresh_token' not in response.cookies

@@ -95,6 +95,8 @@ class UserProfile(BaseModel):
     age: Annotated[int, Field(..., ge=18, description='Возраст пользователя')]
     description: Annotated[str | None, Field(
         max_length=250, description='Описание профиля пользователя')] = None
+    latitude: float | None = None
+    longitude: float | None = None
     images: Annotated[list[ImageSchema], Field(
         description='Фотографии пользователя')]
 

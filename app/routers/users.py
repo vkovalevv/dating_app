@@ -22,6 +22,7 @@ from app.config import settings
 from app.services.token import token_service, REFRESH_TOKEN_TTL
 
 from app.services.images import save_user_image
+from app.limiter import limiter
 
 router = APIRouter(prefix='/users',
                    tags=['users'])
@@ -86,9 +87,12 @@ async def upload_user_images(
 
 
 @router.post('/token')
-async def login(response: Response,
-                form_data: OAuth2PasswordRequestForm = Depends(),
-                db: AsyncSession = Depends(get_async_db)):
+@limiter.limit('10/minute')
+async def login(
+        request: Request,
+        response: Response,
+        form_data: OAuth2PasswordRequestForm = Depends(),
+        db: AsyncSession = Depends(get_async_db)):
     user = (await db.scalars(select(UserModel)
                              .where(UserModel.email == form_data.username,
                                     UserModel.is_active == True)
@@ -142,6 +146,7 @@ async def logout(response: Response,
 
 
 @router.post('/refresh-token')
+@limiter.limit('5/minute')
 async def refresh(
         response: Response,
         request: Request):

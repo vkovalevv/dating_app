@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.db import get_async_db
 from app.services.auth import get_current_user
 
@@ -12,15 +12,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.chat import Conversation
 from app.redis_client import get_next_from_stack
+from app.limiter import limiter
 
 router = APIRouter(prefix='/stack',
                    tags=['stack'])
 
 
 @router.post('/swipe')
-async def make_swipe(swipe: SwipeCreate,
-                     current_user: UserModel = Depends(get_current_user),
-                     db: AsyncSession = Depends(get_async_db)) -> dict:
+@limiter.limit('60/minute')
+async def make_swipe(
+        request: Request,
+        swipe: SwipeCreate,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_async_db)) -> dict:
 
     if swipe.target_user == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,

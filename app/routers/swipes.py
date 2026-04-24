@@ -67,8 +67,11 @@ async def make_swipe(
 
 
 @router.get('/next', response_model=UserProfile)
-async def get_next(current_user: UserModel = Depends(get_current_user),
-                   db: AsyncSession = Depends(get_async_db)):
+@limiter.limit('60/minute')
+async def get_next(
+        request: Request,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_async_db)):
     candidate_id = get_next_from_stack(current_user.id)
 
     if not candidate_id:

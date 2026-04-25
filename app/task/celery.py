@@ -2,13 +2,13 @@ from celery import Celery, group
 from celery.schedules import crontab
 from app.models.users import User as UserModel
 from app.database import SessionLocal
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case, or_
 from sqlalchemy.orm import selectinload
 from geoalchemy2.functions import ST_DWithin, ST_GeogFromWKB
 from app.redis_client import save_stack_to_redis
 from geoalchemy2 import WKTElement
 from app.config import settings
-
+from app.models.swipes import Swipe as SwipeModel
 celery = Celery(
     __name__,
     broker=settings.CELERY_BROKER_URL,
@@ -55,8 +55,20 @@ def generate_stack_for_user(self, user_id: int):
         if not stack_ids:
             return
 
-        print(stack_ids)
-        save_stack_to_redis(user.id, stack_ids)
+        exists_swipes = db.scalars(
+            select(
+                case((SwipeModel.first_user_id == user_id, SwipeModel.second_user_id),
+                     else_=SwipeModel.first_user_id)
+            )
+            .where(
+                or_(
+                    SwipeModel.first_user_id == user_id,
+                    SwipeModel.second_user_id == user_id
+                )
+            )).all()
+        exists_set = set(exists_swipes)
+        finish_stack = [x for x in stack_ids if x not in exists_set]
+        save_stack_to_redis(user.id, finish_stack)
     except Exception as e:
         raise self.retry(exc=e, countdown=60)
     finally:

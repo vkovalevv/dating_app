@@ -8,6 +8,15 @@ from app.models.chat import Conversation, Message
 router = APIRouter()
 
 
+def serialize_message(msg: Message) -> dict:
+    return {
+        'text': msg.text,
+        'from': msg.sender_id,
+        'created_at': msg.created_at.isoformat(),
+        'conversation_id': msg.conversation_id
+    }
+
+
 @router.websocket('/ws')
 async def chat_endpoint(websocket: WebSocket,
                         db: AsyncSession = Depends(get_async_db)) -> None:
@@ -40,9 +49,8 @@ async def chat_endpoint(websocket: WebSocket,
     unread_messages = unread.all()
 
     for msg in unread_messages:
-        await websocket.send_json({'from': msg.sender_id,
-                                  'text': msg.text,
-                                  'created_at': msg.created_at.isoformat()})
+        message = serialize_message(msg)
+        await websocket.send_json(data=message)
         msg.is_read = True
 
     await db.commit()
@@ -52,23 +60,22 @@ async def chat_endpoint(websocket: WebSocket,
         while True:
             data = await websocket.receive_json()
 
-            first_user, second_user = sorted([user.id, data['to']])
-
-            conversation_result = await db.scalars(select(Conversation)
-                                                   .where(Conversation.first_user == first_user,
-                                                          Conversation.second_user == second_user))
-
-            conversation = conversation_result.first()
-            if not conversation:
+            conversation = await db.get(Conversation, data['conversation_id'])
+            if not conversation or user.id not in (conversation.first_user,
+                                                   conversation.second_user):
                 await websocket.send_json({'error': 'conversation not found'})
                 continue
 
+            to_user_id = (conversation.first_user if conversation.second_user ==
+                          user.id else conversation.second_user)
             message = Message(sender_id=user.id, conversation_id=conversation.id,
                               text=data['text'])
+
             db.add(message)
             await db.commit()
-
-            await manager.send_personal(data['text'], to_user_id=data['to'])
+            await db.refresh(message)
+            payload = serialize_message(message)
+            await manager.send_personal(payload, to_user_id=to_user_id)
     except WebSocketDisconnect:
         pass
     finally:

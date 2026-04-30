@@ -11,10 +11,10 @@ class ConnectionManager:
     def disconnect(self, user_id: int):
         self.connections.pop(user_id, None)
 
-    async def send_personal(self, message: str, to_user_id: int):
+    async def send_personal(self, payload: dict, to_user_id):
         ws = self.connections.get(to_user_id)
         if ws:
-            await ws.send_text(message)
+            await ws.send_json(payload)
 
 
 manager = ConnectionManager()

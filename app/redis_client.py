@@ -9,6 +9,8 @@ redis_tokens = Redis(host=settings.REDIS_HOST,
 
 
 def save_stack_to_redis(user_id: int, stack_ids: list[int]):
+    if not stack_ids:
+        return
     key = f'user:{user_id}'
     pipe = redis_cache.pipeline()
     pipe.delete(key)

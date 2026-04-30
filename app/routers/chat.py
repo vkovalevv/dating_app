@@ -1,20 +1,65 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from app.models.users import User as UserModel
+from app.models.images import Image
+from app.services.auth import get_current_user
 from app.services.connection_manager import manager
 from app.services.auth import get_user_from_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_async_db
-from sqlalchemy import select
+from sqlalchemy import select, desc, nulls_last
 from app.models.chat import Conversation, Message
-router = APIRouter()
+from sqlalchemy import case
+from sqlalchemy.orm import aliased, selectinload
+from app.schemas.conversations import ConversationOut, MessageOut, Companion
+router = APIRouter(prefix='/chat',
+                   tags=['chat'])
 
 
 def serialize_message(msg: Message) -> dict:
     return {
         'text': msg.text,
-        'from': msg.sender_id,
+        'sender_id': msg.sender_id,
         'created_at': msg.created_at.isoformat(),
         'conversation_id': msg.conversation_id
     }
+
+
+@router.get('/chat/conversations', response_model=list[ConversationOut])
+async def get_conversations(current_user: UserModel = Depends(get_current_user),
+                            db: AsyncSession = Depends(get_async_db)):
+    message_subquery = (select(Message.conversation_id, Message.text, Message.sender_id, Message.created_at)
+                        .distinct(Message.conversation_id)
+                        .order_by(Message.conversation_id, desc(Message.created_at))
+                        .subquery())
+    message_alias = aliased(Message, message_subquery)
+
+    conversations_result = (select(Conversation, UserModel, message_alias.text, message_alias.created_at, message_alias.sender_id)
+                            .join(UserModel, UserModel.id == case((Conversation.first_user == current_user.id, Conversation.second_user),
+                                                                  else_=Conversation.first_user))
+                            .outerjoin(message_alias, Conversation.id == message_alias.conversation_id)
+                            .where((Conversation.first_user == current_user.id) | (Conversation.second_user == current_user.id))
+                            .order_by(nulls_last(desc(message_alias.created_at)))
+                            .options(selectinload(UserModel.images.and_(Image.is_main == True))))
+    conversations = (await db.execute(conversations_result)).all()
+
+    result = []
+    for row in conversations:
+        conversation = row.Conversation
+        companion = row.User
+        image = companion.images[0].image if companion.images else None
+
+        last_message=None
+        if row.text is not None:
+            last_message=MessageOut(text=row.text,
+                                    created_at=row.created_at,
+                                    sender_id=row.sender_id)
+
+        result.append(ConversationOut(conversation_id=conversation.id,
+                                      companion=Companion(id=companion.id,
+                                                          first_name=companion.first_name,
+                                                          img_url=image),
+                                      last_message=last_message))
+    return result
 
 
 @router.websocket('/ws')

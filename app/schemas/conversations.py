@@ -9,9 +9,12 @@ class Companion(BaseModel):
 
 
 class MessageOut(BaseModel):
+    id: int 
+    conversation_id: int
     sender_id: int
     text: str
     created_at: datetime
+    is_read: bool = False
 
 class ConversationOut(BaseModel):
     conversation_id: int

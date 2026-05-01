@@ -13,7 +13,6 @@ class MessageOut(BaseModel):
     text: str
     created_at: datetime
 
-
 class ConversationOut(BaseModel):
     conversation_id: int
     companion: Companion

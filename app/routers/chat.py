@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from app.models.users import User as UserModel
 from app.models.images import Image
 from app.services.auth import get_current_user
@@ -6,11 +6,12 @@ from app.services.connection_manager import manager
 from app.services.auth import get_user_from_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_async_db
-from sqlalchemy import select, desc, nulls_last
+from sqlalchemy import select, desc, nulls_last, update
 from app.models.chat import Conversation, Message
 from sqlalchemy import case
 from sqlalchemy.orm import aliased, selectinload
 from app.schemas.conversations import ConversationOut, MessageOut, Companion
+from fastapi_pagination.ext.sqlalchemy import paginate
 router = APIRouter(prefix='/chat',
                    tags=['chat'])
 
@@ -48,17 +49,51 @@ async def get_conversations(current_user: UserModel = Depends(get_current_user),
         companion = row.User
         image = companion.images[0].image if companion.images else None
 
-        last_message=None
+        last_message = None
         if row.text is not None:
-            last_message=MessageOut(text=row.text,
-                                    created_at=row.created_at,
-                                    sender_id=row.sender_id)
+            last_message = MessageOut(text=row.text,
+                                      created_at=row.created_at,
+                                      sender_id=row.sender_id)
 
         result.append(ConversationOut(conversation_id=conversation.id,
                                       companion=Companion(id=companion.id,
                                                           first_name=companion.first_name,
                                                           img_url=image),
                                       last_message=last_message))
+    return result
+
+
+@router.get('/chat/conversations/{conversation_id}/messages', response_model=list[MessageOut])
+async def get_conversation_messages(
+        conversation_id: int,
+        current_user: UserModel = Depends(get_current_user),
+        db: AsyncSession = Depends(get_async_db)):
+
+    conversation = await db.get(Conversation, conversation_id)
+
+    if not conversation or current_user.id not in (conversation.first_user,
+                                                   conversation.second_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail='Conversation not found')
+
+    conversation_messages_result = await db.scalars(select(Message)
+                                                    .where(Message.conversation_id == conversation_id)
+                                                    .order_by(Message.created_at))
+    conversation_messages = conversation_messages_result.all()
+    await db.execute(update(Message).where(Message.is_read == False,
+                                           Message.conversation_id == conversation_id,
+                                           Message.sender_id != current_user.id)
+                     .values(is_read=True))
+    await db.commit()
+    result = []
+    for row in conversation_messages:
+        sender_id = row.sender_id
+        text = row.text
+        created_at = row.created_at
+        serialize_msg = MessageOut(sender_id=sender_id,
+                                   text=text,
+                                   created_at=created_at)
+        result.append(serialize_msg)
     return result
 
 
